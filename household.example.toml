@@ -1,27 +1,26 @@
 # household.example.toml
 #
 # Copy this file to household.toml and change it for your household.
-# household.toml is in .gitignore. Never commit it: it holds names and
-# calendar addresses.
+# household.toml is in .gitignore. Never commit it: it holds names.
 #
 # The family below is made up. It shows a blended household:
-# 2 adults, 1 kid who is always home, 1 kid shared with another parent on
-# a 2-2-3 rotation, and 2 kids shared with a second other parent.
+# 2 adults, 1 kid who is always home, 1 kid shared with another parent, and
+# 2 kids shared with a second other parent.
 
 [household]
-name = "The Rivera-Park House"
+name = "Rivera-Park"
 timezone = "America/Chicago"
-week_starts = "monday"
 
 # --- People -----------------------------------------------------------------
+# aliases: other names that calendar events use for the person.
+# color: the kid's dot on the whiteboard.
 
 [[adults]]
 name = "Alex"
-color = "#60a5fa"
 
 [[adults]]
 name = "Sam"
-color = "#f5b942"
+aliases = ["Samantha"]
 
 # A kid with no custody rule is always home.
 [[kids]]
@@ -32,83 +31,129 @@ color = "#f87171"
 [[kids]]
 name = "Maya"
 color = "#a78bfa"
-custody = "maya-rotation"
-# Maya is with Alex after school every day, also on an away night.
-after_school_home = true
+custody = "maya"
+# On a weekday away night, Maya is with Alex after school, then goes to Jordan.
+after_school_with = "Alex"
 
 [[kids]]
 name = "Leo"
-color = "#4ade80"
-custody = "chris-schedule"
+color = "#60a5fa"
+custody = "chris"
 
 [[kids]]
 name = "Ivy"
 color = "#f472b6"
-custody = "chris-schedule"
+custody = "chris"
 
 # --- Custody rules ----------------------------------------------------------
-# Each rule reads the all-day events of 1 calendar. An event title that
-# starts with a "home" label puts the kid home that day. An event title that
-# starts with an "away" label puts the kid with the other parent.
+# Each rule reads the all-day events of 1 calendar. The title of the event
+# (any case, the whole title) says where the kid sleeps that night:
+#   home:   titles that put the kid home
+#   away:   titles that put the kid with the other parent
+#   ignore: titles that are information only
+# A day with no label, or with labels that disagree, shows as "unsure".
 
-[custody.maya-rotation]
+[custody.maya]
 calendar = "Maya's Schedule"
 other_parent = "Jordan"
 home = ["Alex Night", "Alex Weekend"]
 away = ["Jordan Night", "Jordan Weekend"]
+# A title that starts with TRADE replaces the base label of its day, such as
+# "TRADE: Alex has Maya". Its side comes from the words in it.
+trade_prefix = "TRADE"
+trade_home = ["alex"]
+trade_away = ["jordan"]
+# Show a pill such as "Maya → Jordan weekend Fri–Sun" on the day it starts.
+show_changes = true
 
-[custody.chris-schedule]
+[custody.chris]
 calendar = "Custody"
 other_parent = "Chris"
 home = ["Sam"]
 away = ["Chris"]
-# Titles that are information only and never change custody.
 ignore = ["Shift Night"]
+# An event on any calendar can also carry a tag in its description, such as
+# custody:sam or custody:chris.
+tag_home = ["sam"]
+tag_away = ["chris"]
 
 # --- Calendars ----------------------------------------------------------------
-# source = "ical": the address comes from the environment variable in "env".
+# source = "ical": the address is in household.env under the key in "env".
 #   For a Google calendar, use its "Secret address in iCal format".
-#   Never put the address in this file.
-# source = "gcal": a Google calendar ID, read with a service account key.
-# A required calendar that cannot be read fails the run.
-# An optional calendar that cannot be read is left out and named on the page.
+#   Never put an address in this file.
+# source = "gcal": calendar_id of a Google calendar, read with the service
+#   account key of [google] (pip install -e ".[google]").
+# required = true: a calendar that cannot be read fails the run. A calendar
+#   that a custody rule reads must be required.
+# required = false: a calendar that cannot be read is left out and named.
+# pill: the color of its events: blue, amber, teal, coral, red or gray.
+# people: the people every event of the calendar is about.
+# start, end: optional dates (YYYY-MM-DD), such as for a sports season.
 
 [[calendars]]
 name = "Family"
 source = "ical"
 env = "HCB_ICAL_FAMILY"
-required = false
-pill = "family"
+pill = "coral"
+
+[[calendars]]
+name = "Alex"
+source = "ical"
+env = "HCB_ICAL_ALEX"
+pill = "gray"
+people = ["Alex"]
 
 [[calendars]]
 name = "Maya's Schedule"
 source = "ical"
 env = "HCB_ICAL_MAYA"
 required = true
-pill = "kid:Maya"
+pill = "amber"
+pill_all_day = "teal"
+people = ["Maya"]
 
 [[calendars]]
 name = "Custody"
 source = "ical"
 env = "HCB_ICAL_CUSTODY"
 required = true
-pill = "info"
+pill = "gray"
 
 [[calendars]]
 name = "Leo Soccer"
 source = "ical"
 env = "HCB_ICAL_LEO_SOCCER"
-required = false
-pill = "kid:Leo"
+pill = "blue"
+people = ["Leo"]
+start = "2026-08-15"
+end = "2026-11-15"
 
-# --- Kitchen ------------------------------------------------------------------
-# The menu job reads these settings. Free-text kitchen notes (dinners you like,
-# staples, this-week notes) go in kitchen-notes.md next to this file.
+# --- Bypass rules (optional) ----------------------------------------------------
+# For a period, a kid is "home", "off" (not on the board), or follows its
+# "custody" calendar. No end date: no end.
+#
+# [[bypass]]
+# kid = "Theo"
+# status = "off"
+# start = 2026-10-01
+# end = 2026-10-04
+
+# --- Display (optional) ---------------------------------------------------------
+
+[display]
+hide_titles = []
+hide_title_prefixes = ["Lunch:"]
+title_replace = { "Leo Soccer U11 Blue" = "Soccer" }
+
+# --- Kitchen --------------------------------------------------------------------
+# The menu job reads these settings. The free-text lists (dinners you like,
+# staples, this-week notes) go in kitchen-notes.md.
 
 [kitchen]
 dinner_time = "6:00p"
 snack_time = "4:15p"
-# "eat together": dinner moves to 15 minutes after the last late person.
+# "eat together": on a night with a late person, dinner moves to 15 minutes
+#   after the last one comes in.
 # "held plates": dinner stays, and a late person gets a held plate.
 practice_nights = "eat together"
 # A person whose event runs past this time does not eat at home that night.
@@ -116,13 +161,18 @@ latest_dinner = "8:00p"
 
 [[kitchen.diets]]
 person = "Sam"
-rule = "Gluten-free. A sensitivity, not celiac: a shared griddle is fine."
+rule = "Gluten-free. A sensitivity, not celiac: a shared griddle is fine; wheat stays out of the dish."
+tag = "GF"
 
-# --- Output -------------------------------------------------------------------
+# --- Files (optional; paths are relative to this file) --------------------------
+
+[files]
+env = "household.env"
+whiteboard_notes = "whiteboard-notes.md"
+kitchen_notes = "kitchen-notes.md"
+state = "state"
 
 [output]
-# "html": write static pages to the folder below.
-adapter = "html"
 folder = "out"
 
 # --- Model step -----------------------------------------------------------------
@@ -131,5 +181,10 @@ folder = "out"
 # The claude program on the PATH, or a full path.
 claude = "claude"
 model = "claude-opus-5-5"
-# Each job makes 1 model call. The run stops the call above this cost.
-budget_usd = 0.50
+# The dollar cap of each model call.
+notes_budget_usd = 0.50
+plan_budget_usd = 1.00
+
+# --- Google service account (optional) ------------------------------------------
+# [google]
+# key_file = "google-key.json"

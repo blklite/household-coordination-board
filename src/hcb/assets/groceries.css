@@ -1,0 +1,48 @@
+#hh-groceries-page{--bg:#f3ecdd;--card:#fbf6ec;--card2:#f0e8d8;--ink:#2b3550;--mut:#5f5b50;--rule:#dbcbae;--meal:#5b4514;--mealt:#85600f;--link:#2c4f86;
+  --prep-bg:#f6e6bf;--prep-border:#d3ae55;
+  --check-bg:#f6dcda;--check-border:#e0a9a4;--check-tx:#7f2424;--check-head:#9c2f28;--check-b:#5c1a1a;
+  --gf-bg:#dbece7;--gf-border:#9cc9bb;--gf-tx:#1e544a;--gf-head:#17463d;--gf-b:#0f332c;--have:#3f6b3f;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);padding:20px;border-radius:14px;max-width:780px;margin:0 auto;line-height:1.45}
+#hh-groceries-page *{box-sizing:border-box}
+#hh-groceries-page a,#hh-groceries-page a:link,#hh-groceries-page a:visited{color:var(--link);text-decoration:underline;text-underline-offset:2px}
+#hh-groceries-page .gh{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:2px}
+#hh-groceries-page .gtitle{font-size:22px;font-weight:700}
+#hh-groceries-page .gsub{font-size:13px;color:var(--mut)}
+#hh-groceries-page .gnote{font-size:12px;color:var(--mut);margin:6px 0 16px}
+#hh-groceries-page .sect{background:var(--card);border-radius:10px;padding:12px 16px;margin-bottom:10px}
+#hh-groceries-page .sect h3{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut)}
+#hh-groceries-page ul{margin:0;padding-left:18px}
+#hh-groceries-page li{font-size:14px;margin-bottom:5px}
+#hh-groceries-page li .n{color:var(--mut);font-size:12px}
+#hh-groceries-page .meals{background:var(--card2);border-radius:10px;padding:12px 16px;margin-bottom:14px}
+#hh-groceries-page .meals h3{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--mealt)}
+#hh-groceries-page .mrow{display:flex;gap:10px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--rule)}
+#hh-groceries-page .mrow:last-child{border-bottom:none}
+#hh-groceries-page .mrow .d{flex:none;width:42px;color:var(--mealt);font-weight:700}
+#hh-groceries-page .mrow .seats{flex:none;width:34px;color:var(--mut);font-size:12px;font-variant-numeric:tabular-nums}
+#hh-groceries-page .who{color:var(--mut);font-size:12px}
+#hh-groceries-page .prep{background:var(--prep-bg);border:1px solid var(--prep-border);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px}
+#hh-groceries-page .prep h3{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--meal)}
+#hh-groceries-page .checkfirst{background:var(--check-bg);border:1px solid var(--check-border);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:var(--check-tx)}
+#hh-groceries-page .checkfirst h3{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--check-head)}
+#hh-groceries-page .checkfirst b{color:var(--check-b)}
+#hh-groceries-page .checkfirst li{color:var(--check-tx)}
+#hh-groceries-page .gfsect{background:var(--gf-bg);border:1px solid var(--gf-border);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:var(--gf-tx)}
+#hh-groceries-page .gfsect h3{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--gf-head)}
+#hh-groceries-page .gfsect b{color:var(--gf-b)}
+#hh-groceries-page .gfsect li{color:var(--gf-tx)}
+#hh-groceries-page .have{margin-top:10px;padding-top:9px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--have)}
+#hh-groceries-page .pagelinks{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;margin:4px 0 0}
+#hh-groceries-page .pagelinks a,#hh-groceries-page .pagelinks span{white-space:nowrap}
+#hh-groceries-page .pagelinks span{color:var(--ink);font-weight:600}
+
+@media (prefers-color-scheme: dark){
+html:not([data-theme]) #hh-groceries-page{--bg:#0f1115;--card:#171a21;--card2:#1c2029;--ink:#e8eaed;--mut:#9aa0a8;--rule:#2a2f3a;--meal:#e6cf9a;--mealt:#bfa463;--link:#9ec5ff;
+  --prep-bg:#1f1a12;--prep-border:#4a3a1c;
+  --check-bg:#2a1414;--check-border:#5c2626;--check-tx:#f0c0c0;--check-head:#f87171;--check-b:#ffe0e0;
+  --gf-bg:#10251a;--gf-border:#23573c;--gf-tx:#a9dcc0;--gf-head:#7fe0a8;--gf-b:#dcf5e6;--have:#8fb98f}
+}
+html[data-theme="dark"] #hh-groceries-page{--bg:#0f1115;--card:#171a21;--card2:#1c2029;--ink:#e8eaed;--mut:#9aa0a8;--rule:#2a2f3a;--meal:#e6cf9a;--mealt:#bfa463;--link:#9ec5ff;
+  --prep-bg:#1f1a12;--prep-border:#4a3a1c;
+  --check-bg:#2a1414;--check-border:#5c2626;--check-tx:#f0c0c0;--check-head:#f87171;--check-b:#ffe0e0;
+  --gf-bg:#10251a;--gf-border:#23573c;--gf-tx:#a9dcc0;--gf-head:#7fe0a8;--gf-b:#dcf5e6;--have:#8fb98f}

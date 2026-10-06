@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "household-coordination-board"
+version = "0.1.0"
+description = "A weekly whiteboard, dinner plan and grocery list for a busy household, built from its calendars"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+  "icalendar>=6",
+  "recurring-ical-events>=3",
+  "tzdata",
+]
+
+[project.optional-dependencies]
+google = ["cryptography>=42"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+hcb = "hcb.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+hcb = ["assets/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
