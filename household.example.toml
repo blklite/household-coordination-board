@@ -1,0 +1,135 @@
+# household.example.toml
+#
+# Copy this file to household.toml and change it for your household.
+# household.toml is in .gitignore. Never commit it: it holds names and
+# calendar addresses.
+#
+# The family below is made up. It shows a blended household:
+# 2 adults, 1 kid who is always home, 1 kid shared with another parent on
+# a 2-2-3 rotation, and 2 kids shared with a second other parent.
+
+[household]
+name = "The Rivera-Park House"
+timezone = "America/Chicago"
+week_starts = "monday"
+
+# --- People -----------------------------------------------------------------
+
+[[adults]]
+name = "Alex"
+color = "#60a5fa"
+
+[[adults]]
+name = "Sam"
+color = "#f5b942"
+
+# A kid with no custody rule is always home.
+[[kids]]
+name = "Theo"
+color = "#f87171"
+
+# A kid with a custody rule follows the labels on 1 calendar.
+[[kids]]
+name = "Maya"
+color = "#a78bfa"
+custody = "maya-rotation"
+# Maya is with Alex after school every day, also on an away night.
+after_school_home = true
+
+[[kids]]
+name = "Leo"
+color = "#4ade80"
+custody = "chris-schedule"
+
+[[kids]]
+name = "Ivy"
+color = "#f472b6"
+custody = "chris-schedule"
+
+# --- Custody rules ----------------------------------------------------------
+# Each rule reads the all-day events of 1 calendar. An event title that
+# starts with a "home" label puts the kid home that day. An event title that
+# starts with an "away" label puts the kid with the other parent.
+
+[custody.maya-rotation]
+calendar = "Maya's Schedule"
+other_parent = "Jordan"
+home = ["Alex Night", "Alex Weekend"]
+away = ["Jordan Night", "Jordan Weekend"]
+
+[custody.chris-schedule]
+calendar = "Custody"
+other_parent = "Chris"
+home = ["Sam"]
+away = ["Chris"]
+# Titles that are information only and never change custody.
+ignore = ["Shift Night"]
+
+# --- Calendars ----------------------------------------------------------------
+# source = "ical": the address comes from the environment variable in "env".
+#   For a Google calendar, use its "Secret address in iCal format".
+#   Never put the address in this file.
+# source = "gcal": a Google calendar ID, read with a service account key.
+# A required calendar that cannot be read fails the run.
+# An optional calendar that cannot be read is left out and named on the page.
+
+[[calendars]]
+name = "Family"
+source = "ical"
+env = "HCB_ICAL_FAMILY"
+required = false
+pill = "family"
+
+[[calendars]]
+name = "Maya's Schedule"
+source = "ical"
+env = "HCB_ICAL_MAYA"
+required = true
+pill = "kid:Maya"
+
+[[calendars]]
+name = "Custody"
+source = "ical"
+env = "HCB_ICAL_CUSTODY"
+required = true
+pill = "info"
+
+[[calendars]]
+name = "Leo Soccer"
+source = "ical"
+env = "HCB_ICAL_LEO_SOCCER"
+required = false
+pill = "kid:Leo"
+
+# --- Kitchen ------------------------------------------------------------------
+# The menu job reads these settings. Free-text kitchen notes (dinners you like,
+# staples, this-week notes) go in kitchen-notes.md next to this file.
+
+[kitchen]
+dinner_time = "6:00p"
+snack_time = "4:15p"
+# "eat together": dinner moves to 15 minutes after the last late person.
+# "held plates": dinner stays, and a late person gets a held plate.
+practice_nights = "eat together"
+# A person whose event runs past this time does not eat at home that night.
+latest_dinner = "8:00p"
+
+[[kitchen.diets]]
+person = "Sam"
+rule = "Gluten-free. A sensitivity, not celiac: a shared griddle is fine."
+
+# --- Output -------------------------------------------------------------------
+
+[output]
+# "html": write static pages to the folder below.
+adapter = "html"
+folder = "out"
+
+# --- Model step -----------------------------------------------------------------
+
+[model]
+# The claude program on the PATH, or a full path.
+claude = "claude"
+model = "claude-opus-5-5"
+# Each job makes 1 model call. The run stops the call above this cost.
+budget_usd = 0.50
