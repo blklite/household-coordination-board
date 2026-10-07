@@ -260,3 +260,46 @@ def test_eat_together_does_not_test_a_moved_time_past_midnight(household):
                  ("Family", "Ivy lock-in", (0,), (23,)), latest=dt.time(23, 55))
     assert line.dinner == dt.time(0, 5)
     assert line.waits == [("Leo", "11:50p"), ("Ivy", "11:00p")] and line.count == 6
+
+
+# --- eat together: the dinner time follows only the people the house waits for ------------
+
+def test_eat_together_with_nobody_left_to_wait_for_dinner_is_at_the_normal_time(household):
+    # Leo 5-7p moves dinner to 7:15p; Leo 7:00-8:30p is out at 7:15p: nobody is left to
+    # wait for, so dinner is back at 6:00p.
+    line = night(household, PRACTICE, ("Leo Soccer", "Scrimmage", (19,), (20, 30)))
+    assert line.dinner == dt.time(18)
+    assert line.text == "Table ~6:00p: Alex, Sam, Theo, Maya, Ivy (5) · Leo out until 8:30p"
+    assert line.waits == [] and line.count == 5
+
+
+def test_eat_together_the_dinner_time_follows_only_the_people_at_the_table(household):
+    # Leo 5-7p: 7:15p; Ivy 6:45-7:30p: 7:45p; Ivy 7:40-8:30p is out at 7:45p. Only Leo is
+    # waited for: 7:15p, where Ivy's recital still covers the time.
+    line = night(household, PRACTICE, ("Family", "Ivy recital", (18, 45), (19, 30)),
+                 ("Family", "Ivy party", (19, 40), (20, 30)))
+    assert line.dinner == dt.time(19, 15)
+    assert line.text == "Table ~7:15p: Alex, Sam, Theo, Maya, Leo (5) · Ivy out until 8:30p"
+    assert line.waits == [("Leo", "7:00p")] and line.count == 5
+
+
+def test_eat_together_a_person_late_at_the_earlier_final_time_is_waited_for(household):
+    # Leo 5-7p and Sam 5:30-7:40p: 7:55p; Sam 7:45-9:00p is out at 7:55p. Only Leo is
+    # left: 7:15p, where Ivy 6:45-7:30p is late: 7:45p, a fixed point.
+    line = night(household, PRACTICE, ("Family", "Sam meeting", (17, 30), (19, 40)),
+                 ("Family", "Sam class", (19, 45), (21,)),
+                 ("Family", "Ivy recital", (18, 45), (19, 30)))
+    assert line.dinner == dt.time(19, 45)
+    assert line.text == "Table ~7:45p: Alex, Theo, Maya, Leo, Ivy (5) · Sam out until 9:00p"
+    assert line.waits == [("Leo", "7:00p"), ("Ivy", "7:30p")] and line.count == 5
+
+
+def test_eat_together_a_person_out_with_no_event_at_the_final_time_comes_back(household):
+    # Leo 5-7p: 7:15p; Leo and Theo 7:00-8:30p are out at 7:15p. Dinner is back at 6:00p:
+    # Theo has no event then and comes back; Leo's practice covers 6:00p.
+    line = night(household, PRACTICE, ("Leo Soccer", "Scrimmage", (19,), (20, 30)),
+                 ("Family", "Theo rehearsal", (19,), (20, 30)))
+    assert line.dinner == dt.time(18)
+    assert line.text == "Table ~6:00p: Alex, Sam, Theo, Maya, Ivy (5) · Leo out until 8:30p"
+    assert line.away == [("Leo", "out until 8:30p")]
+    assert line.waits == [] and line.count == 5
