@@ -21,8 +21,10 @@ The rules of the iCal source, each with a test in tests/test_calendars.py:
   that zone (UTC on some team feeds).
 - Recurring events: RRULE, EXDATE and RECURRENCE-ID through
   recurring-ical-events; an instance with STATUS:CANCELLED is dropped.
-- The same event on 2 calendars (same UID and instance, or same title, start
-  and end) is kept once, from the calendar listed first.
+- The same event on 2 or more calendars (same UID and instance, or same
+  title, start and end) is kept once: the first copy that is a custody event
+  on its own calendar (``prefer``), else the copy from the calendar listed
+  first.
 - Each iCal request names the program: ``User-Agent: household-coordination-board``.
   Some school feeds answer HTTP 403 to Python's default agent name.
 
@@ -259,16 +261,28 @@ def _same_key(event):
     return (event.title.casefold(), event.all_day, str(event.start), str(event.end))
 
 
-def dedupe(events):
-    """Keep the first of each event that is on more than 1 calendar."""
-    seen_uid, seen_key, kept = set(), set(), []
+def dedupe(events, prefer=None):
+    """Keep 1 copy of each event that is on more than 1 calendar.
+
+    The copies of an event match by UID or by title, start and end. The kept
+    copy is the first copy for which ``prefer(event)`` is true (a custody
+    event on its own calendar, so that its label is read), else the first
+    copy; it stays at the place of the first copy.
+    """
+    by_uid, by_key, kept, chosen = {}, {}, [], []
     for event in events:
         key = _same_key(event)
-        if event.uid in seen_uid or key in seen_key:
+        at = by_uid.get(event.uid, by_key.get(key))
+        if at is None:
+            at = len(kept)
+            kept.append(event)
+            chosen.append(bool(prefer and prefer(event)))
+        elif not chosen[at] and prefer and prefer(event):
+            kept[at], chosen[at] = event, True
+        else:
             continue
-        seen_uid.add(event.uid)
-        seen_key.add(key)
-        kept.append(event)
+        by_uid.setdefault(event.uid, at)
+        by_key.setdefault(key, at)
     return kept
 
 
@@ -325,13 +339,15 @@ def reason_for(err, name):
     return err.reason if err.calendar == name else str(err)
 
 
-def read_all(calendars, urls, first_day, end_day, fetch=fetch, google=None, missing=None):
+def read_all(calendars, urls, first_day, end_day, fetch=fetch, google=None, missing=None,
+             prefer=None):
     """All events of the window, from each calendar in config order (``read_one``).
 
     With ``missing`` None, every calendar must be read: the first that gives
     no valid reply raises ``CalendarError``. With ``missing`` a list, only a
     required calendar raises; an optional one that gives no valid reply is
     left out, and ``(name, fixed reason)`` is appended to ``missing``.
+    ``prefer`` picks the copy that ``dedupe`` keeps of an event on 2 calendars.
     """
     events = []
     for entry in calendars:
@@ -341,4 +357,4 @@ def read_all(calendars, urls, first_day, end_day, fetch=fetch, google=None, miss
             if missing is None or required(entry):
                 raise
             missing.append((entry["name"], reason_for(err, entry["name"])))
-    return dedupe(events)
+    return dedupe(events, prefer)

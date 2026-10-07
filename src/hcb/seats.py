@@ -17,7 +17,11 @@ The setting ``practice_nights`` decides what a late person means:
 
 - ``eat together``: on a night with a late person, dinner moves to 15
   minutes after the last such end, and every person who eats here is at the
-  table; no plate is held. A night with no late person keeps the dinner time;
+  table; no plate is held. A night with no late person keeps the dinner time.
+  After each move, each person at the table is tested again at the new time,
+  until the time is stable: late again moves the dinner again (it only moves
+  later); out at the new time, or back after the latest dinner time, is not
+  here and not a plate. Only the people at the table are tested again;
 - ``held plates``: dinner stays at the dinner time, and the line names each
   late person with the end time (``Late after 7:00p: Leo``).
 
@@ -104,14 +108,16 @@ def _until(end, date):
     return f"out until {weekmod.WEEKDAYS[end.weekday()]} {clock(end)}"
 
 
-def held_at(date, events, household, kitchen):
+def held_at(date, events, household, kitchen, dinner=None):
     """``(late, out)``, each ``{name: end}``: the diners of a timed event that covers the
-    dinner time of ``date``. Late: the event ends by the latest dinner time of that night;
-    out: it ends later, or on a later day. The latest end of a kind wins."""
+    dinner time of ``date`` (``dinner``, by default the kitchen's). Late: the event ends
+    by the latest dinner time of that night; out: it ends later, or on a later day. The
+    latest end of a kind wins."""
     config = household.week_config()
     calendars_by_name = {c["name"]: c for c in config["calendars"]}
     diners = household.adult_names + household.kid_names
-    at = dt.datetime.combine(date, kitchen.dinner, tzinfo=calendars.TZ)
+    at = dt.datetime.combine(date, kitchen.dinner if dinner is None else dinner,
+                             tzinfo=calendars.TZ)
     limit = dt.datetime.combine(date, kitchen.latest_dinner, tzinfo=calendars.TZ)
     late, out = {}, {}
     for event in events:
@@ -159,14 +165,45 @@ def seats_for(day, household, kitchen, events=None):
             seats.table.append(name)
     if kitchen.practice == EAT_TOGETHER and seats.late:
         # The house waits for the last person and eats together; no plate is held.
-        seats.dinner = (max(end for _, end in seats.late) + WAIT).time()
-        seats.waits = [(name, clock(end)) for name, end in seats.late]
-        waiting = {name for name, _ in seats.late}
-        seats.table = [name for name in diners if name in seats.table or name in waiting]
-        seats.late = []
+        _eat_together(seats, day.date, events, household, kitchen, diners)
     else:
         seats.late = [(name, clock(end)) for name, end in seats.late]
     return seats
+
+
+def _eat_together(seats, date, events, household, kitchen, diners):
+    """Move the dinner of ``seats`` for its late people, and test the table again.
+
+    After each move, each person at the table is tested again at the new time
+    (``held_at``). Late again (back by the latest dinner time): the dinner
+    moves to that end plus ``WAIT``, so it only moves later; repeat until it
+    is stable. Out at the new time (back after the latest dinner time, or on a
+    later day): not at the table and not a plate (``Alex out until 9:00p``).
+    ``waits`` names each person waited for who is at the table at the final
+    time.
+    """
+    waited = dict(seats.late)
+    table = seats.table + list(waited)
+    dinner = max(waited.values()) + WAIT
+    # Each end of ``again`` is after the tested time, so the time only moves later and
+    # the loop ends; a time past midnight is not tested again.
+    while dinner.date() == date:
+        late, out = held_at(date, events, household, kitchen, dinner.time())
+        for name in [name for name in table if name in out]:      # out wins over late
+            table.remove(name)
+            seats.away.append((name, _until(out[name], date)))
+        again = {name: late[name] for name in table if name in late}
+        if not again:
+            break
+        for name, end in again.items():
+            waited[name] = max(waited.get(name, end), end)
+        dinner = max(again.values()) + WAIT
+    seats.away.sort(key=lambda item: diners.index(item[0]))
+    seats.dinner = dinner.time()
+    seats.table = [name for name in diners if name in table]
+    seats.waits = [(name, clock(waited[name])) for name in diners
+                   if name in waited and name in table]
+    seats.late = []
 
 
 def table_lines(week, household, kitchen):

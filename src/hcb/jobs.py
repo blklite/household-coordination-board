@@ -113,6 +113,25 @@ def sources(household, entries):
     return urls, account, skipped
 
 
+def custody_copy(household):
+    """The test of the copy that ``calendars.dedupe`` keeps of an event on 2 calendars.
+
+    True for a custody event with at least 1 label on its own calendar (a
+    title on a calendar that ``household.rules_on`` names, or a tag), so that a
+    custody event that is also on another calendar keeps its label, and an
+    ``ignore`` title (no label) keeps the other copy and its pill. Each day of
+    the event must be inside the dates of its calendar: else the copy would be
+    dropped after dedupe, so the other copy is kept.
+    """
+    by_name = {c["name"]: c for c in household.calendars}
+
+    def custody(event):
+        calendar = by_name.get(event.calendar, {})
+        return (bool(weekmod.custody_labels(event, household))
+                and all(weekmod.in_dates(calendar, d) for d in event.days))
+    return custody
+
+
 def read_events(household, monday, days, fetch=calendars.fetch, google_fetch=None):
     """``(events, missing)`` of the calendars for ``days`` days from ``monday``.
 
@@ -128,7 +147,8 @@ def read_events(household, monday, days, fetch=calendars.fetch, google_fetch=Non
     try:
         events = calendars.read_all([c for c in entries if c["name"] not in left_out], urls,
                                     monday, monday + dt.timedelta(days=days),
-                                    fetch=fetch, google=google, missing=missing)
+                                    fetch=fetch, google=google, missing=missing,
+                                    prefer=custody_copy(household))
     except calendars.CalendarError as err:
         raise Failed("calendars", str(err)) from None
     order = [c["name"] for c in entries]
