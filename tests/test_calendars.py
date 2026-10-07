@@ -68,3 +68,12 @@ def test_a_custody_event_also_on_family_keeps_its_label(household, fetch):
     assert [d.transitions for d in weekend][1:] == [[], []]
     assert len(weekend[0].transitions) == 1 and "Maya" in "".join(weekend[0].transitions[0])
     assert not [p for p in week.open_points if "Maya" in p]
+
+
+def test_dedupe_a_third_copy_that_matches_only_the_kept_custody_copy_is_dropped(household):
+    # Family and Maya's Schedule match by title and times; the copy on Alex matches the
+    # copy of Maya's Schedule by uid only.
+    found = kept(household, copy("Family", uid="family-uid"),
+                 copy("Maya's Schedule", uid="maya-uid"),
+                 copy("Alex", title="Alex Weekend (copy)", uid="maya-uid"))
+    assert [e.calendar for e in found] == ["Maya's Schedule"]

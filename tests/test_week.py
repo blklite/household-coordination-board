@@ -209,3 +209,12 @@ def test_held_plates_does_not_test_the_table_again(household):
     line = night(household, PRACTICE, ("Alex", "Coaching", (18, 30), (21,)),
                  practice="held plates")
     assert line.text == "Table ~6:00p: Alex, Sam, Theo, Maya, Ivy (5) · Late after 7:00p: Leo"
+
+
+def test_eat_together_moves_first_to_the_last_end_of_the_late_people(household):
+    # Leo 5-7p and Sam 5:30-8:00p are late at 6:00p: dinner 8:15p at once. Theo
+    # 7:00-8:10p never covers a time that is tested, so he is at the table.
+    line = night(household, PRACTICE, ("Family", "Sam meeting", (17, 30), (20,)),
+                 ("Family", "Theo rehearsal", (19,), (20, 10)))
+    assert line.text == "Table ~8:15p: Alex, Sam, Theo, Maya, Leo, Ivy (6)"
+    assert line.waits == [("Sam", "8:00p"), ("Leo", "7:00p")]
