@@ -119,9 +119,17 @@ def custody_copy(household):
     True for a custody event with at least 1 label on its own calendar (a
     title on a calendar that ``household.rules_on`` names, or a tag), so that a
     custody event that is also on another calendar keeps its label, and an
-    ``ignore`` title (no label) keeps the other copy and its pill.
+    ``ignore`` title (no label) keeps the other copy and its pill. Each day of
+    the event must be inside the dates of its calendar: else the copy would be
+    dropped after dedupe, so the other copy is kept.
     """
-    return lambda event: bool(weekmod.custody_labels(event, household))
+    by_name = {c["name"]: c for c in household.calendars}
+
+    def custody(event):
+        calendar = by_name.get(event.calendar, {})
+        return (bool(weekmod.custody_labels(event, household))
+                and all(weekmod.in_dates(calendar, d) for d in event.days))
+    return custody
 
 
 def read_events(household, monday, days, fetch=calendars.fetch, google_fetch=None):
