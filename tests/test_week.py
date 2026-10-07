@@ -218,3 +218,14 @@ def test_eat_together_moves_first_to_the_last_end_of_the_late_people(household):
                  ("Family", "Theo rehearsal", (19,), (20, 10)))
     assert line.text == "Table ~8:15p: Alex, Sam, Theo, Maya, Leo, Ivy (6)"
     assert line.waits == [("Sam", "8:00p"), ("Leo", "7:00p")]
+
+
+def test_eat_together_does_not_test_an_unsure_kid_again(household):
+    # No label for Maya on Monday: unsure, though her concert covers the moved time.
+    events = [day_event("Custody", "Sam", 0),
+              time_event("Leo Soccer", "Practice", 0, dt.time(17), dt.time(19)),
+              time_event("Family", "Maya concert", 0, dt.time(18, 30), dt.time(21))]
+    week = week_of(household, events)
+    line = seats.table_lines(week, household, kitchen_for(household, "eat together"))[0]
+    assert line.text == "Table ~7:15p: Alex, Sam, Theo, Leo, Ivy (5) · Unsure: Maya"
+    assert line.count == 6
