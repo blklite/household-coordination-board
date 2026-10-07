@@ -90,3 +90,33 @@ def test_dedupe_keeps_the_family_copy_of_an_ignored_custody_title(household):
     # A labelled custody event on Custody still wins over the Family copy.
     found = kept(household, copy("Family", title="Sam"), copy("Custody", title="Sam"))
     assert [e.calendar for e in found] == ["Custody"]
+
+
+def ending(household, name, end):
+    """``household`` with ``end`` as the end date of the calendar ``name``."""
+    for entry in household.calendars:
+        if entry["name"] == name:
+            entry["end"] = end.isoformat()
+    return household
+
+
+def test_dedupe_keeps_the_family_copy_of_a_custody_copy_outside_its_calendars_dates(household):
+    # A tagged copy on Leo Soccer, whose end date is before the event, would win and then be
+    # dropped by the dates of Leo Soccer. The Family copy is kept and its pill stays.
+    ending(household, "Leo Soccer", FRIDAY - dt.timedelta(days=1))
+    found = kept(household, copy("Family"), copy("Leo Soccer", description="custody:sam"))
+    assert [e.calendar for e in found] == ["Family"]
+    week = weekmod.build_week(found, MONDAY, weekmod.Notes(), household)
+    assert [p.title for p in week.days[4].pills] == ["Alex Weekend"]
+
+
+def test_dedupe_keeps_the_family_copy_of_a_custody_copy_partly_outside_its_calendars_dates(
+        household):
+    # The end date of Leo Soccer is the Saturday of the Fri-Sun event: the Family copy is kept.
+    ending(household, "Leo Soccer", FRIDAY + dt.timedelta(days=1))
+    found = kept(household, copy("Family"), copy("Leo Soccer", description="custody:sam"))
+    assert [e.calendar for e in found] == ["Family"]
+    # Inside its dates, the tagged copy on Leo Soccer still wins.
+    ending(household, "Leo Soccer", FRIDAY + dt.timedelta(days=2))
+    found = kept(household, copy("Family"), copy("Leo Soccer", description="custody:sam"))
+    assert [e.calendar for e in found] == ["Leo Soccer"]
