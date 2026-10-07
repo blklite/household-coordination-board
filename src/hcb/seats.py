@@ -186,11 +186,14 @@ def _eat_together(seats, date, events, household, kitchen, diners):
     time, or on a later day): not at the table and not a plate (``Alex out
     until 9:00p``), and out while the time moves. Repeat until a test at the
     time moves nothing. ``waits`` names each person waited for who is at the
-    table at the final time.
+    table at the final time. Then each person taken off as out who has no
+    event that covers the final time comes back to the table; that does not
+    move the time.
     """
     normal = dt.datetime.combine(date, seats.dinner, tzinfo=calendars.TZ)
     waited = dict(seats.late)
     table = seats.table + list(waited)
+    taken_off = {}                              # name: its part of ``seats.away``
 
     def final():
         """The dinner time of the people waited for at the table (full date-times)."""
@@ -206,13 +209,21 @@ def _eat_together(seats, date, events, household, kitchen, diners):
         late, out = held_at(date, events, household, kitchen, dinner.time())
         for name in [name for name in table if name in out]:      # out wins over late
             table.remove(name)
-            seats.away.append((name, _until(out[name], date)))
+            taken_off[name] = (name, _until(out[name], date))
+            seats.away.append(taken_off[name])
         for name in table:
             if name in late:
                 waited[name] = max(waited.get(name, late[name]), late[name])
         tested, dinner = dinner, final()
     seats.waits = [(name, clock(waited[name])) for name in diners
                    if name in waited and name in table]
+    if taken_off:
+        # Once, at the final time; a person who comes back is not waited for.
+        late, out = held_at(dinner.date(), events, household, kitchen, dinner.time())
+        for name, part in taken_off.items():
+            if name not in late and name not in out:
+                seats.away.remove(part)
+                table.append(name)
     seats.away.sort(key=lambda item: diners.index(item[0]))
     seats.dinner = dinner.time()
     seats.table = [name for name in diners if name in table]
