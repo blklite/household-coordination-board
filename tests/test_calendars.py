@@ -77,3 +77,16 @@ def test_dedupe_a_third_copy_that_matches_only_the_kept_custody_copy_is_dropped(
                  copy("Maya's Schedule", uid="maya-uid"),
                  copy("Alex", title="Alex Weekend (copy)", uid="maya-uid"))
     assert [e.calendar for e in found] == ["Maya's Schedule"]
+
+
+def test_dedupe_keeps_the_family_copy_of_an_ignored_custody_title(household):
+    # An ignored title on Custody gives no label, so it is no custody copy; the Family
+    # copy (listed first) is kept and its pill stays.
+    found = kept(household, copy("Family", title="Shift Night"),
+                 copy("Custody", title="Shift Night"))
+    assert [e.calendar for e in found] == ["Family"]
+    week = weekmod.build_week(found, MONDAY, weekmod.Notes(), household)
+    assert [p.title for p in week.days[4].pills] == ["Shift Night"]
+    # A labelled custody event on Custody still wins over the Family copy.
+    found = kept(household, copy("Family", title="Sam"), copy("Custody", title="Sam"))
+    assert [e.calendar for e in found] == ["Custody"]
