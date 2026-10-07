@@ -179,7 +179,9 @@ def test_eat_together_a_person_back_after_8_00p_at_the_moved_time_is_out(househo
 
 def test_eat_together_a_person_waited_for_and_out_at_the_final_time_is_not_waited_for(
         household):
-    # Leo 5-7p: 7:15p; Ivy 6:45-7:30p: 7:45p; Leo 7:40-8:30p is out at 7:45p, which stays.
+    # Leo 5-7p: 7:15p; Ivy 6:45-7:30p: 7:45p; Leo 7:40-8:30p is out at 7:45p. The time
+    # follows only the people waited for at the table: Ivy keeps it at 7:45p, and Leo's
+    # scrimmage covers 7:45p, so he stays out.
     line = night(household, PRACTICE, ("Family", "Ivy recital", (18, 45), (19, 30)),
                  ("Leo Soccer", "Scrimmage", (19, 40), (20, 30)))
     assert line.dinner == dt.time(19, 45)
