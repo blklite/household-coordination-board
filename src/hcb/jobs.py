@@ -116,11 +116,12 @@ def sources(household, entries):
 def custody_copy(household):
     """The test of the copy that ``calendars.dedupe`` keeps of an event on 2 calendars.
 
-    True for a custody event on its own calendar (a title on a calendar that
-    ``household.rules_on`` names, or a tag), so that a custody event that is
-    also on another calendar keeps its label.
+    True for a custody event with at least 1 label on its own calendar (a
+    title on a calendar that ``household.rules_on`` names, or a tag), so that a
+    custody event that is also on another calendar keeps its label, and an
+    ``ignore`` title (no label) keeps the other copy and its pill.
     """
-    return lambda event: weekmod.custody_labels(event, household) is not None
+    return lambda event: bool(weekmod.custody_labels(event, household))
 
 
 def read_events(household, monday, days, fetch=calendars.fetch, google_fetch=None):
