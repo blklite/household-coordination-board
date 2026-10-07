@@ -184,23 +184,22 @@ def _eat_together(seats, date, events, household, kitchen, diners):
     """
     waited = dict(seats.late)
     table = seats.table + list(waited)
-    dinner = (max(waited.values()) + WAIT).time()
-    moved_out = False
-    while True:
-        late, out = held_at(date, events, household, kitchen, dinner)
+    dinner = max(waited.values()) + WAIT
+    # Each end of ``again`` is after the tested time, so the time only moves later and
+    # the loop ends; a time past midnight is not tested again.
+    while dinner.date() == date:
+        late, out = held_at(date, events, household, kitchen, dinner.time())
         for name in [name for name in table if name in out]:      # out wins over late
             table.remove(name)
             seats.away.append((name, _until(out[name], date)))
-            moved_out = True
         again = {name: late[name] for name in table if name in late}
         if not again:
             break
         for name, end in again.items():
             waited[name] = max(waited.get(name, end), end)
-        dinner = (max(again.values()) + WAIT).time()   # each end is after the time
-    if moved_out:
-        seats.away.sort(key=lambda item: diners.index(item[0]))
-    seats.dinner = dinner
+        dinner = max(again.values()) + WAIT
+    seats.away.sort(key=lambda item: diners.index(item[0]))
+    seats.dinner = dinner.time()
     seats.table = [name for name in diners if name in table]
     seats.waits = [(name, clock(waited[name])) for name in diners
                    if name in waited and name in table]

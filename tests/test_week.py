@@ -229,3 +229,12 @@ def test_eat_together_does_not_test_an_unsure_kid_again(household):
     line = seats.table_lines(week, household, kitchen_for(household, "eat together"))[0]
     assert line.text == "Table ~7:15p: Alex, Sam, Theo, Leo, Ivy (5) · Unsure: Maya"
     assert line.count == 6
+
+
+def test_eat_together_does_not_test_a_moved_time_past_midnight(household):
+    # latest_dinner 11:55p: Leo back at 11:50p moves the dinner past midnight. That time
+    # is not tested again: on the same date, Ivy's day-long event would cover it.
+    line = night(household, ("Leo Soccer", "Tournament", (17,), (23, 50)),
+                 ("Family", "Ivy lock-in", (0,), (23,)), latest=dt.time(23, 55))
+    assert line.dinner == dt.time(0, 5)
+    assert line.waits == [("Leo", "11:50p"), ("Ivy", "11:00p")] and line.count == 6
