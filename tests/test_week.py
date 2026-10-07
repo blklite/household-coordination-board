@@ -305,3 +305,27 @@ def test_eat_together_a_person_out_with_no_event_at_the_final_time_comes_back(ho
     assert line.text == "Table ~6:00p: Alex, Sam, Theo, Maya, Ivy (5) · Leo out until 8:30p"
     assert line.away == [("Leo", "out until 8:30p")]
     assert line.waits == [] and line.count == 5
+
+
+def test_eat_together_a_person_comes_back_at_a_final_time_past_midnight(household):
+    # latest_dinner 11:55p. Leo 5-7p: 7:15p; Ivy 7:00-11:50p is late at 7:15p: 12:05a of
+    # the next day. Theo 7:00-11:58p is out at 7:15p; no event of his covers 12:05a of the
+    # next day, so he comes back. His 12:00-1:00a event is on Monday: it does not count.
+    line = night(household, PRACTICE, ("Family", "Ivy lock-in", (19,), (23, 50)),
+                 ("Family", "Theo show", (19,), (23, 58)),
+                 ("Family", "Theo early shift", (0,), (1,)), latest=dt.time(23, 55))
+    assert line.dinner == dt.time(0, 5)
+    assert line.table == ["Alex", "Sam", "Theo", "Maya", "Leo", "Ivy"] and line.away == []
+    assert line.waits == [("Leo", "7:00p"), ("Ivy", "11:50p")] and line.count == 6
+
+
+def test_eat_together_a_person_waited_for_who_comes_back_is_not_waited_for(household):
+    # Leo 5-7p: 7:15p; Theo 7:10-7:30p is late at 7:15p: 7:45p; Leo and Theo 7:40-8:30p are
+    # out at 7:45p. Dinner is back at 6:00p; Theo comes back, but the time does not wait
+    # for him.
+    line = night(household, PRACTICE, ("Family", "Theo lesson", (19, 10), (19, 30)),
+                 ("Family", "Theo rehearsal", (19, 40), (20, 30)),
+                 ("Leo Soccer", "Scrimmage", (19, 40), (20, 30)))
+    assert line.dinner == dt.time(18)
+    assert line.text == "Table ~6:00p: Alex, Sam, Theo, Maya, Ivy (5) · Leo out until 8:30p"
+    assert line.waits == [] and line.count == 5
