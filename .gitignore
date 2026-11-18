@@ -1,6 +1,7 @@
 # Your household data. Never commit these files.
 household.toml
 kitchen-notes.md
+whiteboard-notes.md
 *.env
 *-key.json
 out/

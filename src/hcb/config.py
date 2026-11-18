@@ -23,6 +23,7 @@ STATUSES = ("custody", "home", "off")
 PRACTICE = ("eat together", "held plates")
 CLOCK = re.compile(r"^(\d{1,2})(?::([0-5]\d))?\s*([ap])\.?(?:m\.?)?$", re.I)
 ENV_KEY = re.compile(r"[A-Z][A-Z0-9_]*")
+MLB_TEAM_MAX = 9999            # an MLB team id: 1 to 4 digits
 COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 NAME_CHARS = 40
 
@@ -94,7 +95,7 @@ class Household:
     adults: list
     kids: list
     custody: dict                  # rule id -> CustodyRule
-    calendars: list                # dicts: name, source, env|calendar_id, required, pill, ...
+    calendars: list                # dicts: name, source, env|calendar_id|team_id, required, ...
     bypass: list                   # dicts: kid, start, end, status
     hide_titles: list
     hide_title_prefixes: list
@@ -239,8 +240,14 @@ def _calendar(table, number, errors):
         if not (isinstance(calendar_id, str) and calendar_id and "://" not in calendar_id):
             errors.append(f"{where}: calendar_id is missing or not valid")
         entry.update(source="gcal", calendar_id=calendar_id)
+    elif source == "mlb":
+        team_id = table.get("team_id")
+        if (isinstance(team_id, bool) or not isinstance(team_id, int)
+                or not 0 <= team_id <= MLB_TEAM_MAX):
+            errors.append(f"{where}: team_id is not an MLB team number (1 to 4 digits)")
+        entry.update(source="mlb", team_id=team_id)
     else:
-        errors.append(f"{where}: source is not ical or gcal")
+        errors.append(f"{where}: source is not ical, gcal or mlb")
     pill = table.get("pill", "gray")
     if pill not in PILLS:
         errors.append(f"{where}: pill is not 1 of {', '.join(PILLS)}")
@@ -288,11 +295,11 @@ def parse(data, base=Path(".")):
     errors = []
     house = data.get("household", {})
     name = _text(house, "name", "household", errors, required=False, limit=60) or "Household"
-    timezone = house.get("timezone", "America/Chicago")
+    timezone = house.get("timezone", "UTC")
     try:
         ZoneInfo(timezone)
     except (ZoneInfoNotFoundError, ValueError, TypeError):
-        errors.append("household: timezone is not a known zone, such as America/Chicago")
+        errors.append("household: timezone is not a known zone, such as Europe/Paris")
         timezone = "UTC"
 
     adults = [_person(t, f"adults #{i}", errors) for i, t in enumerate(data.get("adults", []), 1)]
@@ -432,17 +439,26 @@ def read_env(path):
 
     The values are calendar addresses: they stay in this dict and never go
     into ``os.environ``, a log line or an exception. On POSIX, a file that
-    group or others can read is refused.
+    group or others can read is refused. A file that exists but can not be
+    read (no permission, a folder, text that is not UTF-8) is a
+    ``ConfigError`` that names only the file and the type of the error, so a
+    run fails at its step ``config`` with exit 1, and ``check`` prints 1 line.
     """
     path = Path(path)
     try:
         mode = stat.S_IMODE(path.stat().st_mode)
     except FileNotFoundError:
         return {}
+    except OSError as err:
+        raise ConfigError([f"{path.name} not read ({type(err).__name__})"]) from None
     if os.name == "posix" and mode & 0o077:
         raise ConfigError([f"{path} is mode {mode:o}: run chmod 600 {path}"])
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as err:     # never the text: it may hold an address
+        raise ConfigError([f"{path.name} not read ({type(err).__name__})"]) from None
     found = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue

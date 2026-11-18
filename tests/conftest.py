@@ -15,7 +15,7 @@ from hcb import config, notes_step
 
 ROOT = Path(__file__).resolve().parent.parent
 MONDAY = dt.date(2026, 10, 12)
-# Sunday Oct 11, 2026, 12:00 in Chicago: the run builds the week of Mon Oct 12.
+# Sunday Oct 11, 2026, 13:00 in New York: the run builds the week of Mon Oct 12.
 NOW = dt.datetime(2026, 10, 11, 17, 0, tzinfo=dt.timezone.utc)
 URLS = {"HCB_ICAL_FAMILY": "https://cal.example.test/family.ics",
         "HCB_ICAL_ALEX": "https://cal.example.test/alex.ics",
@@ -36,8 +36,8 @@ def all_day(uid, title, first, days=1, description=""):
 
 def timed(uid, title, offset, start, end, location="", description=""):
     return (f"BEGIN:VEVENT\r\nUID:{uid}\r\nSUMMARY:{title}\r\n"
-            f"DTSTART;TZID=America/Chicago:{_day(offset)}T{start}00\r\n"
-            f"DTEND;TZID=America/Chicago:{_day(offset)}T{end}00\r\n"
+            f"DTSTART;TZID=America/New_York:{_day(offset)}T{start}00\r\n"
+            f"DTEND;TZID=America/New_York:{_day(offset)}T{end}00\r\n"
             f"LOCATION:{location}\r\nDESCRIPTION:{description}\r\nEND:VEVENT\r\n")
 
 
@@ -57,9 +57,9 @@ def bodies():
                          week + 4, 3)]
     custody = [all_day("c1", "Sam", 0, 3), all_day("c2", "Chris", 3, 4),
                all_day("c3", "Shift Night", 1), all_day("c4", "Sam", 7, 7)]
-    soccer = [timed("s1", "Leo Soccer U11 Blue practice", 1, "1700", "1900", "Field 3, Park"),
-              timed("s2", "Leo Soccer U11 Blue practice", 3, "1700", "1900", "Field 3, Park"),
-              timed("s3", "Leo Soccer U11 Blue game", 5, "1000", "1130", "Field 1")]
+    soccer = [timed("s1", "Leo Soccer Lightning practice", 1, "1700", "1900", "Field 3, Park"),
+              timed("s2", "Leo Soccer Lightning practice", 3, "1700", "1900", "Field 3, Park"),
+              timed("s3", "Leo Soccer Lightning game", 5, "1000", "1130", "Field 1")]
     family = [timed("f1", "Dentist: Theo", 2, "1530", "1630", "Main St Dental"),
               all_day("f2", "No school", 4),
               timed("f3", "Lunch: pack", 0, "1200", "1230")]
@@ -138,7 +138,10 @@ def plan_for(monday, staples):
                  "read_label": False, "freeze": True},
                 {"section": "Pantry & dry", "item": "BBQ sauce", "quantity": "1 bottle",
                  "days": ["Sun"], "note": "", "staple": "", "check_first": True,
-                 "read_label": True, "freeze": False}]
+                 "read_label": True, "freeze": False},
+                {"section": "Produce", "item": "Apples", "quantity": "6",
+                 "days": ["snack shelf"], "note": "", "staple": "", "check_first": False,
+                 "read_label": False, "freeze": False}]
     shopping += [{"section": "Dairy & cold", "item": s, "quantity": "1", "days": ["staples"],
                   "note": "", "staple": s, "check_first": True, "read_label": False,
                   "freeze": False} for s in staples]

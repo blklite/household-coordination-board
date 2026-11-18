@@ -4,16 +4,29 @@
 ``render_groceries`` that of the grocery list (wrapper ``hh-groceries-page``):
 
 - menu: the header with the week, the row of links, the note with the build
-  date, the rules of the week, the diet box, 7 day rows (the dinner, its tags,
-  how to cook it, and the table line from code), the snack shelf, the
-  assumptions and the open questions;
+  date, 7 day rows (the dinner, its tags, how to cook it, and the table line
+  from code), the snack shelf, the assumptions, the open questions, and last
+  the rules of the week (left out with 0 rules) and the diet box: the days
+  come first;
 - groceries: the header, the row of links, the note with the build date, the
   check-first box, the state of the week (carries, the put-away rule, the
-  plates), the diet box, the 7 meal rows (with the plates from code), and the
-  list by section.
+  plates), the diet box (the swap nights and the labels to read, from code;
+  left out when there is neither), the 7 meal rows (with the plates from
+  code), and the list by section.
 
 The diet box and the diet tags appear only when household.toml has diet
-rules. The style sheets are ``assets/menu.css`` and ``assets/groceries.css``.
+rules. The notes of the model on the diets are on the dinner plan only, so
+each fact is on 1 page. The note lines keep their words but hold no link:
+the row of links gives them. The style sheets are ``assets/menu.css`` and
+``assets/groceries.css``; the row of links is a row of pill buttons, by CSS
+only.
+
+A page rendered with a ``theme`` (the jobs pass the theme of the Monday,
+season.py) gets the seasonal icons of the whiteboard (menu_art.py): a second
+``<style>``, the hidden sprite and the garland right after the ``</style>``
+of the page, an icon first in the title line, and a corner icon as the first
+line of 3 or 4 boxes. No other line changes; with ``theme=None`` (the
+default) the page has no icons.
 
 Every string of the plan is collapsed to 1 line and HTML-escaped (``esc``).
 Each assumption is marked on the menu: a tag on its day, and the section
@@ -24,7 +37,7 @@ import html
 import re
 from importlib import resources
 
-from . import page_links, plan_step
+from . import menu_art, page_links, plan_step
 from .render import esc
 from .week import MONTHS, WEEKDAYS, day_name, join_names
 
@@ -139,29 +152,29 @@ def _assumption_day(assumption, monday):
     return _short(monday + dt.timedelta(days=WEEKDAYS.index(assumption["day"])))
 
 
-def render_menu(plan, seats, built_on, diets=()):
-    """The dinner plan page. ``plan`` is the checked plan, ``seats`` the 7 table lines."""
+def render_menu(plan, seats, built_on, diets=(), theme=None):
+    """The dinner plan page. ``plan`` is the checked plan, ``seats`` the 7 table lines.
+
+    ``theme``: the season of the icons (season.py), None for no icons.
+    """
     monday = seats[0].date
     sunday = monday + dt.timedelta(days=6)
+    art = menu_art.markup("menu", theme, monday)
+    corners = art.get("corners", {})
     assumed = {a["day"] for a in plan["assumptions"]}
-    lines = [MENU_WRAPPER, "<style>", _css("menu.css").rstrip("\n"), "</style>", "",
+    lines = [MENU_WRAPPER, "<style>", _css("menu.css").rstrip("\n"), "</style>",
+             *art.get("head", []), "",
              '<div class="gh">',
-             '  <div class="gtitle">Dinner Plan</div>',
+             f'  <div class="gtitle">{art.get("title", "")}Dinner Plan</div>',
              f'  <div class="gsub">{_short(monday)} – {_short(sunday)}, {sunday.year}</div>',
              "</div>",
              page_links.html_row("Dinner plan"),
              f'<div class="gnote">{built_line(built_on)} <b>{esc(_sentence(plan["lead"]))}</b> '
-             "<b>Inventory is not known</b>: the "
-             f'<a href="{page_links.GROCERIES_LINK}">grocery list</a> is a full shop with '
-             f'check-first marks. Pairs with the <a href="{page_links.WHITEBOARD_LINK}">'
-             "whiteboard</a>.</div>", "",
-             '<div class="rule">', "  <h3>⚑ The rules this week</h3>"]
-    lines += _paragraphs([_lead_text(item) for item in plan["week_rules"]]) + ["</div>", ""]
-    if diets and plan["diet_note"]:
-        lines += ['<div class="gfbox">', f"  <h3>{diet_heading(diets)}</h3>"]
-        lines += _paragraphs([_lead_text(item) for item in plan["diet_note"]]) + ["</div>", ""]
-    for dinner, line in zip(plan["dinners"], seats):
-        lines += _day_row(dinner, line, WEEKDAYS[line.date.weekday()] in assumed, diets)
+             "<b>Inventory is not known</b>: the grocery list is a full shop with check-first "
+             "marks. Pairs with the whiteboard.</div>", ""]
+    for i, (dinner, line) in enumerate(zip(plan["dinners"], seats)):
+        row = _day_row(dinner, line, WEEKDAYS[line.date.weekday()] in assumed, diets)
+        lines += row[:1] + ([corners[i]] if i in corners else []) + row[1:]
     lines += _list("sect", "Practice-day snack shelf", [
         esc(item["item"]) + (f' <span class="n">— {esc(item["note"])}</span>' if item["note"]
                              else "") for item in plan["snack_shelf"]])
@@ -171,6 +184,14 @@ def render_menu(plan, seats, built_on, diets=()):
     lines += _list("sect", "Open questions", [
         f"<b>{esc(q['question'])}</b>" + (f" {esc(q['why'])}" if q["why"] else "")
         for q in plan["open_questions"]])
+    # The rules and the diet box come last, after the days. The rules box holds
+    # only what no other line shows; with 0 rules it is left out.
+    if plan["week_rules"]:
+        lines += ['<div class="rule">', "  <h3>⚑ The rules this week</h3>"]
+        lines += _paragraphs([_lead_text(item) for item in plan["week_rules"]]) + ["</div>", ""]
+    if diets and plan["diet_note"]:
+        lines += ['<div class="gfbox">', f"  <h3>{diet_heading(diets)}</h3>"]
+        lines += _paragraphs([_lead_text(item) for item in plan["diet_note"]]) + ["</div>", ""]
     lines.append("</div>")
     return "\n".join(lines)
 
@@ -217,24 +238,22 @@ def _state_of_week(plan, seats):
 
 
 def _diet_box(plan, diets):
+    """The swap nights and the labels to read, from code; [] when there is neither.
+
+    The notes of the model on the diets are on the dinner plan only: each fact on 1 page.
+    """
     if not diets:
         return []
     swaps = [f"{_weekday(d['date'])}: "
              f"{diet_tag(d['diet'], diets)[1].removeprefix(esc(diet_label(diets)) + ': ')}"
              for d in plan["dinners"] if d["diet"]["kind"] == "swap"]
     labels = [esc(i["item"]) for i in plan["shopping"] if i["read_label"]]
-    notes = [_lead_text(item) for item in plan["diet_note"]]
-    items = notes[1:]
+    items = []
     if swaps:
-        items.insert(0, f"<b>Swap nights:</b> {'; '.join(swaps)}.")
+        items.append(f"<b>Swap nights:</b> {'; '.join(swaps)}.")
     if labels:
         items.append(f"<b>Read in the store:</b> {', '.join(labels)}.")
-    first = notes[0] if notes else "; ".join(f"<b>{esc(d.person)}:</b> {esc(d.rule)}"
-                                             for d in diets)
-    lines = ['<div class="gfsect">', f"  <h3>{diet_heading(diets)}</h3>", f"  {first}"]
-    if items:
-        lines += ["  <ul>"] + [f"    <li>{item}</li>" for item in items] + ["  </ul>"]
-    return lines + ["</div>", ""]
+    return _list("gfsect", diet_heading(diets), items)
 
 
 def _meal_row(dinner, seats, plan):
@@ -261,31 +280,41 @@ def _item(item):
             f'<span class="n">{" · ".join(note)}</span>')
 
 
-def render_groceries(plan, seats, built_on, diets=()):
-    """The grocery list page. ``plan`` is the checked plan, ``seats`` the 7 table lines."""
+def render_groceries(plan, seats, built_on, diets=(), theme=None):
+    """The grocery list page. ``plan`` is the checked plan, ``seats`` the 7 table lines.
+
+    ``theme``: the season of the icons (season.py), None for no icons.
+    """
     monday = seats[0].date
     sunday = monday + dt.timedelta(days=6)
-    lines = [GROCERIES_WRAPPER, "<style>", _css("groceries.css").rstrip("\n"), "</style>", "",
+    art = menu_art.markup("groceries", theme, monday)
+    corners = list(art.get("corners", {}).values())
+    lines = [GROCERIES_WRAPPER, "<style>", _css("groceries.css").rstrip("\n"), "</style>",
+             *art.get("head", []), "",
              '<div class="gh">',
-             '  <div class="gtitle">Groceries</div>',
+             f'  <div class="gtitle">{art.get("title", "")}Groceries</div>',
              f'  <div class="gsub">For {_short(monday)} – {_short(sunday)}, {sunday.year}</div>',
              "</div>",
              page_links.html_row("Groceries"),
              f'<div class="gnote">{built_line(built_on)} <strong>Shopping list, not an '
              "inventory board.</strong> Every line is written as a buy, and the ones that may "
              "already be in the freezer or pantry are marked <b>check first</b>. Tied to "
-             f'<a href="{page_links.MENU_LINK}">this week\'s dinner plan</a>. Schedule and kid '
-             f'placement on the <a href="{page_links.WHITEBOARD_LINK}">household whiteboard</a>.'
-             "</div>", ""]
+             "this week's dinner plan. Schedule and kid placement on the household "
+             "whiteboard.</div>", ""]
     lines += _list("checkfirst", "⚑ Check before you leave", _check_first(plan))
     lines += _state_of_week(plan, seats)
     lines += _diet_box(plan, diets)
-    lines += ['<div class="meals">', "  <h3>Meal Plan — and what it draws on</h3>"]
+    # The corner icons: the meal box first, then the list sections in order.
+    lines += ['<div class="meals">', *corners[:1], "  <h3>Meal Plan — and what it draws on</h3>"]
     lines += [_meal_row(dinner, line, plan) for dinner, line in zip(plan["dinners"], seats)]
     lines += ["</div>", ""]
+    corners = corners[1:]
     for section in plan_step.SECTIONS:
-        lines += _list("sect", html.escape(section),
-                       [_item(i) for i in plan["shopping"] if i["section"] == section])
+        box = _list("sect", html.escape(section),
+                    [_item(i) for i in plan["shopping"] if i["section"] == section])
+        if box and corners:
+            box.insert(1, corners.pop(0))
+        lines += box
     lines.append("</div>")
     return "\n".join(lines)
 

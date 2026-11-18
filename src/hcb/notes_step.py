@@ -14,10 +14,16 @@ reaches it: the addresses live in a dict, never in ``os.environ``.
 
 ``run_notes_step`` writes the prompt file (the prompt plus the week as JSON)
 into the folder, runs the runner, reads its reply and checks it against the
-schema: exactly 4 fields, plain text, with length limits, no web address
-(``http://``, ``https://``, ``www.``) as written or as the page shows it, and
-no other key. A failed run or a failed check is not a failed job: the caller
-renders the grid with 1 line that says the notes are missing.
+schema: exactly 4 fields, plain text that is valid Unicode, with length
+limits, no web address (``http://``, ``https://``, ``www.``) as written or as
+the page shows it, and no other key. A failed run or a failed check is not a
+failed job: the caller renders the grid with 1 line that says the notes are
+missing.
+
+The files of the run folder: ``reply.txt`` and ``notes.json`` are written
+whole or not at all (``output.write_file``). A call that is paid keeps its
+counters (tokens, seconds, dollars) when its reply can not be written or is
+not text, so the cost line of the run is right.
 """
 import json
 import os
@@ -28,6 +34,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from .output import FolderSyncError, write_file
 from .week import plain
 
 LAST_LINE = "END-OF-NOTES"
@@ -49,6 +56,8 @@ SCHEMA = {
 # Event text and the notes file reach the model; a field with a web address
 # is how a hostile event would steer the family to a link. It fails the check.
 URL = re.compile(r"https?://|www\.", re.I)
+# json.loads keeps an escaped lone surrogate, and reply.txt (UTF-8) can not hold it.
+NOT_UNICODE_REPLY = "the reply holds text that is not valid Unicode"
 
 
 def holds_web_address(text):
@@ -75,6 +84,25 @@ class NotesOutcome:
     notes: object           # the checked dict, or None
     reason: str             # why there are no notes; "" when there are
     result: RunResult
+
+
+def write_reply(folder, reply):
+    """Write ``reply.txt`` of a runner: "" when it is written, else a fixed reason.
+
+    The reply is encoded first, so a ``UnicodeError`` leaves no file; the write
+    is atomic, so ``reply.txt`` is whole or absent.
+    """
+    try:
+        reply.encode("utf-8")
+    except UnicodeError:
+        return NOT_UNICODE_REPLY
+    try:
+        write_file(Path(folder) / "reply.txt", reply)
+    except FolderSyncError:             # in place, folder not synced: written
+        pass
+    except OSError as err:
+        return f"reply.txt not written ({type(err).__name__})"
+    return ""
 
 
 class ClaudeRunner:
@@ -136,8 +164,14 @@ class ClaudeRunner:
         if proc.returncode != 0 or envelope.get("is_error"):
             result.error = f"runner exit {proc.returncode}"
             return result
-        reply = envelope.get("result") or ""
-        (Path(folder) / "reply.txt").write_text(reply, encoding="utf-8")
+        reply = envelope.get("result")
+        if reply is not None and not isinstance(reply, str):    # even a falsy one: no empty reply
+            result.error = "the Claude reply has no result text"
+            return result
+        reply = reply or ""
+        result.error = write_reply(folder, reply)
+        if result.error:                # the call is paid: keep its counters
+            return result
         lines = [line.strip() for line in reply.splitlines() if line.strip()]
         result.last_line = lines[-1] if lines else ""
         return result
@@ -168,6 +202,10 @@ def check(obj):
             text = " ".join(item.split())
             if not text or len(text) > max_chars:
                 return None, f"{key} is empty or longer than {max_chars} characters"
+            try:  # json.loads keeps an escaped lone surrogate, which UTF-8 can not write
+                text.encode("utf-8")
+            except UnicodeEncodeError:
+                return None, f"{key} holds text that is not valid Unicode"
             if holds_web_address(text):
                 return None, f"{key} holds a web address"
             clean.append(text)
@@ -200,7 +238,7 @@ def run_notes_step(runner, folder, prompt, week_json, time_limit=TIME_LIMIT_SECO
         prompt_file.write_text(
             f"{prompt.rstrip()}\n\n<week>\n"
             f"{json.dumps(week_json, ensure_ascii=False)}\n</week>\n", encoding="utf-8")
-    except OSError as err:
+    except (OSError, UnicodeError) as err:     # a lone surrogate in the week too
         return NotesOutcome(None, f"run folder not written ({type(err).__name__})", RunResult())
     try:
         result = runner.run(folder, prompt_file, time_limit)
@@ -217,6 +255,11 @@ def run_notes_step(runner, folder, prompt, week_json, time_limit=TIME_LIMIT_SECO
     notes, reason = check(obj)
     if notes is None:
         return NotesOutcome(None, f"the reply failed the check: {reason}", result)
-    (folder / "notes.json").write_text(json.dumps(notes, indent=1, ensure_ascii=False),
-                                       encoding="utf-8")
+    try:  # atomic: a full disk leaves no half file
+        write_file(folder / "notes.json", json.dumps(notes, indent=1, ensure_ascii=False))
+    except FolderSyncError:         # written, folder not synced: the notes stand
+        return NotesOutcome(notes, "", result)
+    except (OSError, UnicodeError) as err:     # check() rejects such text first
+        return NotesOutcome(None, f"notes.json could not be written ({type(err).__name__})",
+                            result)
     return NotesOutcome(notes, "", result)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "household-coordination-board"
-version = "0.1.0"
+version = "0.2.0"
 description = "A weekly whiteboard, dinner plan and grocery list for a busy household, built from its calendars"
 readme = "README.md"
 license = "MIT"

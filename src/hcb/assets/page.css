@@ -70,9 +70,10 @@
 #hh-whiteboard-page .flags li{font-size:12.5px;color:var(--flag-tx);margin-bottom:8px}
 #hh-whiteboard-page .flags b{color:var(--tx)}
 
-#hh-whiteboard-page .pagelinks{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;margin:-8px 0 14px}
-#hh-whiteboard-page .pagelinks a,#hh-whiteboard-page .pagelinks span{white-space:nowrap}
-#hh-whiteboard-page .pagelinks span{color:var(--tx);font-weight:600}
+#hh-whiteboard-page .pagelinks{display:flex;flex-wrap:wrap;gap:6px;font-size:12.5px;margin:-6px 0 14px}
+#hh-whiteboard-page .pagelinks a,#hh-whiteboard-page .pagelinks span{white-space:nowrap;padding:3px 11px;border:1px solid var(--link);
+  border-radius:999px;background:var(--card);line-height:1.4;text-decoration:none}
+#hh-whiteboard-page .pagelinks span{color:var(--tx);font-weight:600;border-color:var(--tx);background:var(--amber-bg)}
 
 @media (prefers-color-scheme: dark){
 html:not([data-theme]) #hh-whiteboard-page{--bg:#12141a;--card:#1b1e26;--card2:#22262f;--rule:#333a47;--tx:#e6e9ef;--tx-dim:#9aa0b2;--tx-faint:#6b7280;
@@ -82,7 +83,7 @@ html:not([data-theme]) #hh-whiteboard-page{--bg:#12141a;--card:#1b1e26;--card2:#
   --link-line:rgba(158,197,255,.45);--link-hover:#c7dcff;--gear:#9aa0b2;--weekend:#181b22;
   --note-bg:#12232f;--note-border:#24485c;--note-tx:#a9cfe4;--note-b:#dcefff;
   --info-tx:#bfd8ff;--amber-tx:#f7d999;--teal-tx:#9df0e0;--coral-tx:#ffb3c1;--red-tx:#ffb4b4;
-  --kid-tx:#9aa0b2;--away:.28;--flag-bg:#241d0e;--flag-border:#4a3a13;--flag-tx:#9aa0b2}
+  --kid-tx:#9aa0b2;--away:.7;--flag-bg:#241d0e;--flag-border:#4a3a13;--flag-tx:#9aa0b2}
 }
 html[data-theme="dark"] #hh-whiteboard-page{--bg:#12141a;--card:#1b1e26;--card2:#22262f;--rule:#333a47;--tx:#e6e9ef;--tx-dim:#9aa0b2;--tx-faint:#6b7280;
   --info:#60a5fa;--info-bg:#1a2740;--amber:#f5b942;--amber-bg:#3a2f10;--red:#f87171;--red-bg:#3a1616;
@@ -91,4 +92,4 @@ html[data-theme="dark"] #hh-whiteboard-page{--bg:#12141a;--card:#1b1e26;--card2:
   --link-line:rgba(158,197,255,.45);--link-hover:#c7dcff;--gear:#9aa0b2;--weekend:#181b22;
   --note-bg:#12232f;--note-border:#24485c;--note-tx:#a9cfe4;--note-b:#dcefff;
   --info-tx:#bfd8ff;--amber-tx:#f7d999;--teal-tx:#9df0e0;--coral-tx:#ffb3c1;--red-tx:#ffb4b4;
-  --kid-tx:#9aa0b2;--away:.28;--flag-bg:#241d0e;--flag-border:#4a3a13;--flag-tx:#9aa0b2}
+  --kid-tx:#9aa0b2;--away:.7;--flag-bg:#241d0e;--flag-border:#4a3a13;--flag-tx:#9aa0b2}

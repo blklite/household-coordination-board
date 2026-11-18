@@ -9,7 +9,9 @@
 
 [household]
 name = "Rivera-Park"
-timezone = "America/Chicago"
+# Your own time zone (an IANA name). Each day of the board runs midnight to
+# midnight in it. With no timezone, the board uses UTC.
+timezone = "America/New_York"
 
 # --- People -----------------------------------------------------------------
 # aliases: other names that calendar events use for the person.
@@ -83,6 +85,10 @@ tag_away = ["chris"]
 #   Never put an address in this file.
 # source = "gcal": calendar_id of a Google calendar, read with the service
 #   account key of [google] (pip install -e ".[google]").
+# source = "mlb": team_id, the number of 1 MLB team (1 to 4 digits). The
+#   games come from the public MLB schedule API, with no key and no address
+#   in household.env. A postseason game gets its round in the title, such
+#   as "NLCS 5"; a game with no start time yet is all-day.
 # required = true: a calendar that cannot be read fails the run. A calendar
 #   that a custody rule reads must be required.
 # required = false: a calendar that cannot be read is left out and named.
@@ -128,6 +134,14 @@ people = ["Leo"]
 start = "2026-08-15"
 end = "2026-11-15"
 
+# An MLB team's games. Remove the "# " of each line to use it, and set the
+# team_id of your team.
+# [[calendars]]
+# name = "Ball game"
+# source = "mlb"
+# team_id = 900
+# pill = "teal"
+
 # --- Bypass rules (optional) ----------------------------------------------------
 # For a period, a kid is "home", "off" (not on the board), or follows its
 # "custody" calendar. No end date: no end.
@@ -143,7 +157,7 @@ end = "2026-11-15"
 [display]
 hide_titles = []
 hide_title_prefixes = ["Lunch:"]
-title_replace = { "Leo Soccer U11 Blue" = "Soccer" }
+title_replace = { "Leo Soccer Lightning" = "Soccer" }
 
 # --- Kitchen --------------------------------------------------------------------
 # The menu job reads these settings. The free-text lists (dinners you like,
@@ -161,7 +175,7 @@ latest_dinner = "8:00p"
 
 [[kitchen.diets]]
 person = "Sam"
-rule = "Gluten-free. A sensitivity, not celiac: a shared griddle is fine; wheat stays out of the dish."
+rule = "Gluten-free: no wheat in the dish. A wheat-free swap, such as the bun, is fine."
 tag = "GF"
 
 # --- Files (optional; paths are relative to this file) --------------------------

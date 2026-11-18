@@ -6,9 +6,15 @@ renders the page, guards it, and writes ``whiteboard.html``.
 
 ``menu(household, ...)``: reads the kitchen notes and the calendars for 7
 days, computes the table line of each night, runs the plan step (1 model
-call; a failure fails the run), renders both pages, guards them, and writes
-``menu.html`` and ``groceries.html``. The plan of a good run is saved as the
-last good plan.
+call, and 1 retry with the failure texts when code rejects the reply; a
+failure fails the run), renders both pages with the seasonal icons of the
+week, guards them, and writes ``menu.html`` and ``groceries.html``. The plan
+of a good run is saved as the last good plan and in the plan history
+(``state/history/plan-<monday>.json``; the 12 newest files stay).
+
+Each model call writes 1 line in ``state/cost.log``: a call that is followed
+by a retry writes ``status=retry``. A good run whose cost line, last good
+plan or history file can not be written exits 1, with the pages written.
 
 ``check(household, ...)``: reads each calendar for the coming week and
 prints 1 line for each, then the rule of each kid, then the table line of
@@ -29,11 +35,15 @@ import traceback
 from importlib import resources
 from pathlib import Path
 
-from . import calendars, config, gcal, kitchen, notes_step, pages, plan_step, render, seats
+from . import (calendars, config, gcal, kitchen, notes_step, pages, plan_step, render, season,
+               seats)
 from . import week as weekmod
 from .output import HtmlFolder
 
 LAST_PLAN = "plan-last-good.json"
+HISTORY = "history"             # plan-<monday>.json of each good menu run
+HISTORY_WEEKS = 12              # the 12 newest files of the history stay
+REPEAT_WEEKS = 1                # no dinner title of the week before
 
 
 class Failed(Exception):
@@ -172,6 +182,7 @@ def _run_folder(household, job, when):
 
 
 def _cost_line(household, job, when, result, status, out):
+    """Append 1 line to ``state/cost.log``. Returns False (and prints 1 line) when it fails."""
     line = (f"{when.astimezone(dt.timezone.utc):%Y-%m-%dT%H:%M:%SZ} job={job} "
             f"tokens_in={result.tokens_in} tokens_out={result.tokens_out} "
             f"seconds={result.seconds:.1f} usd={result.usd:.4f} status={status}")
@@ -181,6 +192,8 @@ def _cost_line(household, job, when, result, status, out):
             handle.write(line + "\n")
     except OSError as err:
         out(f"cost.log not written ({type(err).__name__})")
+        return False
+    return True
 
 
 def _failure(err, out):
@@ -224,7 +237,7 @@ def whiteboard(household, now, out, runner=None, fetch=calendars.fetch, google_f
         out(f"whiteboard failed at the step {failure.step}: {failure.detail}")
         _cost_line(household, "whiteboard", when, result, f"failed:{failure.step}", out)
         return 1
-    _cost_line(household, "whiteboard", when, result, "ok", out)
+    code = 0 if _cost_line(household, "whiteboard", when, result, "ok", out) else 1
     out(f"whiteboard written: {path}")
     if outcome.notes is None:
         out(f"notes are missing this week ({outcome.reason})")
@@ -234,7 +247,7 @@ def whiteboard(household, now, out, runner=None, fetch=calendars.fetch, google_f
         out(f"- {weekmod.plain(point, 320)}")
     for point in week.config_points:
         out(f"- {weekmod.plain(point, 320)}")
-    return 0
+    return code
 
 
 # --- the menu -----------------------------------------------------------------------
@@ -246,13 +259,56 @@ def load_last_plan(household):
         return None
 
 
-def save_last_plan(household, monday, plan):
-    path = household.state_folder / LAST_PLAN
+def _save(path, data):
+    """``data`` as JSON at ``path``: a temporary file, then a rename."""
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(json.dumps({"monday": monday.isoformat(), "plan": plan}, indent=1,
-                                    ensure_ascii=False) + "\n", encoding="utf-8")
+    temporary.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     os.replace(temporary, path)
+
+
+def save_last_plan(household, monday, plan):
+    """Save the plan of a good run as the last good plan."""
+    _save(household.state_folder / LAST_PLAN, {"monday": monday.isoformat(), "plan": plan})
+
+
+def save_history(household, monday, plan):
+    """``history/plan-<monday>.json`` of a good run; the ``HISTORY_WEEKS`` newest files stay.
+
+    A rerun of the same week replaces its file.
+    """
+    folder = household.state_folder / HISTORY
+    _save(folder / f"plan-{monday.isoformat()}.json", {"monday": monday.isoformat(), "plan": plan})
+    for old in sorted(folder.glob("plan-*.json"))[:-HISTORY_WEEKS]:
+        old.unlink()
+
+
+def earlier_dinners(household, monday, saved):
+    """The dinners ``{date, title}`` of the weeks before ``monday`` in the repeat window.
+
+    Each week from its history file; the last good plan ``saved`` stands in for
+    a week with no history file. A plan of ``monday`` itself is never used.
+    """
+    dinners = []
+    for weeks in range(REPEAT_WEEKS, 0, -1):
+        week = (monday - dt.timedelta(weeks=weeks)).isoformat()
+        try:
+            data = json.loads((household.state_folder / HISTORY / f"plan-{week}.json")
+                              .read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            data = saved
+        try:
+            if data["monday"] == week:
+                dinners += [{"date": d["date"], "title": d["title"]}
+                            for d in data["plan"]["dinners"]]
+        except (TypeError, KeyError):
+            pass
+    return dinners
+
+
+def retried(outcome):
+    """The reason of the last call of the plan step, with ``after 1 retry`` after a retry."""
+    return outcome.reason + (", after 1 retry" if outcome.first is not None else "")
 
 
 def read_kitchen(household, monday):
@@ -277,18 +333,28 @@ def menu(household, now, out, runner=None, fetch=calendars.fetch, google_fetch=N
         week, _ = build(household, monday, 7, fetch, google_fetch)
         lines = seats.table_lines(week, household, kitchen_notes)
         prompt = notes_step.prompt_text(_asset("plan_prompt.md"), config.describe(household))
+        saved = load_last_plan(household)
         outcome = plan_step.run_plan_step(
             runner, _run_folder(household, "menu", when), prompt,
-            plan_step.model_input(week, lines, kitchen_notes,
-                                  plan_step.last_plan_input(load_last_plan(household)), today),
+            plan_step.model_input(week, lines, kitchen_notes, plan_step.last_plan_input(saved),
+                                  today, earlier_dinners(household, monday, saved)),
             monday, kitchen_notes.staples)
+        if outcome.first is not None:       # the first call of a retried step is paid too
+            _cost_line(household, "menu", when, outcome.first, "retry", out)
         result = outcome.result
         if outcome.plan is None:
-            raise Failed("plan", outcome.reason)
+            raise Failed("plan", retried(outcome))
         plan = outcome.plan
         diets = household.kitchen.diets
-        bodies = {"menu": pages.render_menu(plan, lines, today, diets),
-                  "groceries": pages.render_groceries(plan, lines, today, diets)}
+        # The seasonal icons of the week's Monday; a page that passes the size
+        # limit with them is written without them.
+        renders = {"menu": pages.render_menu, "groceries": pages.render_groceries}
+        theme = season.theme_of(monday)
+        bodies = {name: render_(plan, lines, today, diets, theme=theme)
+                  for name, render_ in renders.items()}
+        for name, render_ in renders.items():
+            if len(bodies[name].encode("utf-8")) > pages.MAX_BYTES:
+                bodies[name] = render_(plan, lines, today, diets)
         for name, guard in (("menu", pages.guard_menu), ("groceries", pages.guard_groceries)):
             problems = guard(bodies[name])
             if problems:
@@ -306,7 +372,13 @@ def menu(household, now, out, runner=None, fetch=calendars.fetch, google_fetch=N
     except OSError as err:
         out(f"{LAST_PLAN} not written ({type(err).__name__})")
         code = 1
-    _cost_line(household, "menu", when, result, "ok", out)
+    try:
+        save_history(household, monday, plan)
+    except OSError as err:
+        out(f"{HISTORY} not written ({type(err).__name__})")
+        code = 1
+    if not _cost_line(household, "menu", when, result, "ok", out):
+        code = 1
     for path in paths:
         out(f"written: {path}")
     for a in plan["assumptions"]:

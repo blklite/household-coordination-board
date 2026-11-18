@@ -119,3 +119,26 @@ def test_describe_names_no_address():
     assert "Leo and Ivy: custody shared with Chris" in text
     assert "Theo: always home." in text
     assert "://" not in text
+
+
+def test_read_env_names_a_file_it_can_not_stat_and_never_its_text(tmp_path, monkeypatch):
+    path = tmp_path / "household.env"
+    path.write_text("HCB_A=https://x.test/secret.ics\n", encoding="utf-8")
+    real = type(path).stat
+
+    def refuse(self, *args, **kwargs):
+        if self.name == "household.env":
+            raise PermissionError(13, "Permission denied", "https://x.test/secret.ics")
+        return real(self, *args, **kwargs)
+    monkeypatch.setattr(type(path), "stat", refuse)
+    with pytest.raises(config.ConfigError) as caught:
+        config.read_env(path)
+    assert caught.value.errors == ["household.env not read (PermissionError)"]
+    assert caught.value.__cause__ is None and caught.value.__suppress_context__
+    assert "x.test" not in str(caught.value)
+
+
+def test_the_default_zone_is_utc(tmp_path):
+    path = tmp_path / "household.toml"
+    path.write_text('[[adults]]\nname = "A"\n', encoding="utf-8")
+    assert config.load(path).timezone == "UTC"

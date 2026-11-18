@@ -1,8 +1,7 @@
 """Read a Google calendar through the Calendar API, as a service account.
 
 The jobs read the calendars with ``source = "gcal"`` in household.toml
-here, and the others (``source = "ical"``) through calendars.py. The rules,
-each with a test in tests/test_gcal.py:
+here, and the others (``source = "ical"``) through calendars.py. The rules:
 
 - The key file is a service account key (JSON). It must not be readable by
   group or others, the same rule as the env file; any fault with it is a
@@ -21,8 +20,9 @@ each with a test in tests/test_gcal.py:
   instance is dropped. Nothing after the fetch knows the source.
 - Every request goes through ``fetch``: ``calendars.fetch`` (1 hard
   deadline each) with an opener that refuses every redirect, because urllib
-  would send the ``Authorization`` header on to the new host. A redirect is
-  a failed fetch with a fixed reason.
+  would send the ``Authorization`` header on to the new host, and that
+  connects as ``calendars.connect`` does (each address family in turn). A
+  redirect is a failed fetch with a fixed reason.
 - Only events of the type ``default``: the request asks for
   ``eventTypes=default``, and the mapping also drops an item whose
   ``eventType`` is another (birthday, working location, out of office,
@@ -80,8 +80,10 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def fetch(request, timeout=calendars.TIMEOUT_SECONDS):
-    """``calendars.fetch`` (the hard deadline) through an opener that refuses redirects."""
-    opener = urllib.request.build_opener(_NoRedirect())
+    """``calendars.fetch`` (the hard deadline) through an opener that refuses redirects
+    and connects with ``calendars.connect`` (the address families in turn)."""
+    opener = urllib.request.build_opener(_NoRedirect(), calendars.HTTPHandler,
+                                         calendars.HTTPSHandler)
     return calendars.fetch(request, timeout=timeout, opener=opener.open)
 
 

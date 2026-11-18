@@ -124,4 +124,4 @@ def test_a_config_error_is_exit_2(home, fetch):
                                          encoding="utf-8")
     code, lines = run("check", home, fetch)
     assert code == 2
-    assert "config: household: timezone is not a known zone, such as America/Chicago" in lines
+    assert "config: household: timezone is not a known zone, such as Europe/Paris" in lines

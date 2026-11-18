@@ -3,11 +3,13 @@ import datetime as dt
 
 from conftest import MONDAY
 
+from zoneinfo import ZoneInfo
+
 from hcb import calendars, seats, kitchen
 from hcb.calendars import Event
 from hcb.week import Notes, Override, build_week, custody_labels, parse_notes
 
-TZ = calendars.TZ
+TZ = ZoneInfo("America/New_York")     # the zone of household.example.toml
 
 
 def day_event(calendar, title, offset, days=1, description=""):

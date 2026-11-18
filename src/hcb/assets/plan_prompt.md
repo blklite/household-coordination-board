@@ -27,6 +27,8 @@ The input is the JSON between `<input>` and `</input>` below:
   each carried to a later day; null when there is none.
 - `carried_in`: what `last_plan` carries into this `monday`: each with `from`,
   the date it is cooked, and `what`; `[]` when nothing carries in.
+- `earlier_dinners`: the `date` and `title` of each dinner of the week before
+  `monday`; `[]` when there is none.
 - `missing_calendars`: calendars that could not be read this week.
 - `monday` and `monday_after`: the first day of this week and the Monday after it.
 - `built_on`: the day of this run, the Sunday before `monday`. The list is
@@ -36,16 +38,19 @@ Write 1 JSON object with exactly these 8 keys:
 
 1. `lead`: 1 sentence for the top of the dinner plan, at most 200 characters:
    the shape of the week (the carriers, the hard night).
-2. `week_rules`: 1 to 5 objects `{"lead": ..., "text": ...}` (lead at most 120
-   characters, text at most 400): the rules of this week. With `eat together`,
-   the nights that dinner moves and to what time; with `held plates`, who holds
-   a plate on which nights; the nights a kid with a snack line eats here and
-   the snack nights; a night with no adult home to cook; the thaw clock of this
-   week's meat: what goes into the freezer at put-away and which night to pull
-   it to the fridge.
-3. `diet_note`: 0 to 4 objects `{"lead": ..., "text": ...}` (same limits): the
-   note for the `diets` this week: the swaps, and the labels to read in the
-   store. `[]` when `diets` is empty.
+2. `week_rules`: 0 to 5 objects `{"lead": ..., "text": ...}` (lead at most 120
+   characters, text at most 400): the rules of this week that no other line of
+   the 2 pages shows, such as a night with no adult home to cook. Leave out
+   what another line already shows: the dinner and practice times and the
+   late plates (the table line of each night), who eats here and the custody
+   (the table lines), the thaw and put-away steps (the `cook` of each night
+   and the grocery list), and the snack (the snack shelf). When no rule is
+   left, give `[]`.
+3. `diet_note`: 0 to 4 objects `{"lead": ..., "text": ...}` (same limits):
+   only this week's swaps for the `diets`: which night's plate gets which swap
+   (such as a wheat-free bun), and what to buy for it. Do not repeat the
+   general facts of a diet rule or which labels to read: the kitchen notes and
+   the grocery list give them. `[]` when `diets` is empty.
 4. `dinners`: exactly 7 objects, 1 for each date of `days`, in date order:
    - `date`: the date, `YYYY-MM-DD`;
    - `title`: the dinner, at most 90 characters;
@@ -65,7 +70,7 @@ Write 1 JSON object with exactly these 8 keys:
    - `carries`: 0 to 2 objects `{"to": "YYYY-MM-DD", "what": ...}` (what at
      most 80 characters): a dinner cooked double whose second half is the
      dinner of a later night. `to` is a later date of this week, or
-     `monday_after`.
+     `monday_after`. It is at most 2 days after the date of the dinner.
 5. `snack_shelf`: 1 to 8 objects `{"item": ..., "note": ...}` (item at most 80
    characters, note at most 120): the practice-day snack shelf.
 6. `assumptions`: 0 to 5 objects `{"day": ..., "text": ...}` (text at most 200
@@ -110,7 +115,8 @@ Rules:
   late plate.
 - A night with no adult home to cook gets a crock pot or a reheat.
 - Follow every standing rule and every line of `this_week`. Prefer the
-  dinners we like; do not repeat a title of `last_plan`. When
+  dinners we like. No 2 dinners of the week have the same title, and no
+  dinner has a title of `earlier_dinners`. When
   `last_plan.monday` is this `monday`, it is an earlier plan of this same week:
   keep its dinners where they still fit.
 - Food cooked before `monday` is a dinner of this week only when `carried_in`
@@ -128,17 +134,24 @@ Rules:
   a rule for that person's plate is a `swap`. Mark each item whose label must be
   read with `read_label`.
 - Each staple of `kitchen_notes.staples` is on the list once, with `staple` set
-  to its name, `days` `["staples"]` and `check_first` true.
-- Each item of the snack shelf is on the list with `days` `["snack shelf"]`.
+  to its name, `days` `["staples"]` and `check_first` true. Every other item
+  has `staple` `""`.
+- Each item of the snack shelf is on the list with `days` `["snack shelf"]`, so
+  at least 1 list item is for the snack shelf.
 - Thaw clock: thawed raw poultry keeps 1 to 2 days. Meat for a night more than
   2 days after the shop gets `freeze` true, and the `cook` of the night before
-  says to pull it to the fridge.
+  says to pull it to the fridge: each `Meat & protein` item whose first night
+  is `Wed` or later has `freeze` true.
 - Use only facts from the input. Do not invent an event, a time or a person.
   Do not conclude that a person is free from a calendar that is missing.
 - Plain text only: no HTML, no Markdown, no web address, no line break inside
   a value.
 - Your whole reply is 1 JSON object with exactly the 8 keys above and no other
   key, then 1 last line that holds only `END-OF-PLAN`.
+- Code checks the rules on the staples, the snack shelf, the carries, the
+  freeze of meat and the titles. When a `<failed-checks>` part follows the
+  input, an earlier reply to this same prompt failed each check that it lists:
+  write the whole JSON object again, with each of them fixed.
 
 Example of the shape (not of the content; the lists are cut short):
 

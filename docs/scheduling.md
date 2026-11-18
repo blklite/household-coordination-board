@@ -3,7 +3,8 @@
 The jobs build the week that starts on the next Monday. Run them on Sunday
 morning. Run `hcb whiteboard` first, then `hcb menu`.
 
-Each run makes 1 model call through the `claude` program. The program must be
+Each run makes 1 model call through the `claude` program (the menu job makes
+a second one when code rejects the first reply). The program must be
 signed in as the user that runs the job. Run `claude` once by hand as that user
 to sign in.
 
@@ -58,6 +59,18 @@ Register-ScheduledTask -TaskName "Household board" -Action $action -Trigger $tri
 
 The computer must be on at that time. Select "Run task as soon as possible
 after a scheduled start is missed" in the task settings to catch up.
+
+## Check a run
+
+Each run appends its lines to `state/hcb.log` in the examples above, and 1
+line for each model call to `state/cost.log`, with a `status`: `ok`,
+`failed:<step>`, or `retry` for a menu call that code rejected before its
+second try. A run exits 1 when it fails or when a record is not written, so a
+scheduler that reports a failed task shows it.
+
+A calendar that can not be read names its reason, such as `no reply in 30 s
+(2 of 8 addresses got no try)`. A required calendar fails the run; an
+optional one is left out and named on the whiteboard.
 
 ## Rebuild the current week
 
